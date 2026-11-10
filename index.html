@@ -53,13 +53,15 @@
   <div class="row">
     <div class="card">
       <h2>Side A</h2>
-      <input id="searchA" placeholder="Search a player, e.g. Jahmyr Gibbs" oninput="renderSearch('A')">
+      <input id="searchA" placeholder="Search, then tap a name to add" oninput="renderSearch('A')" onkeydown="if(event.key==='Enter'){addFirst('A');}">
+      <p class="muted" style="margin:6px 0 0">Tap a name below to add them. Add as many players as you want per side.</p>
       <div class="search-list" id="listA"></div>
       <div id="sideA"></div>
     </div>
     <div class="card">
       <h2>Side B</h2>
-      <input id="searchB" placeholder="Search a player, e.g. Justin Jefferson" oninput="renderSearch('B')">
+      <input id="searchB" placeholder="Search, then tap a name to add" oninput="renderSearch('B')" onkeydown="if(event.key==='Enter'){addFirst('B');}">
+      <p class="muted" style="margin:6px 0 0">Tap a name below to add them. Add as many players as you want per side.</p>
       <div class="search-list" id="listB"></div>
       <div id="sideB"></div>
     </div>
@@ -82,10 +84,16 @@
 let DATA = null;
 let sideA = [], sideB = [];
 async function load() {
-  const res = await fetch('site/data.json');
-  DATA = await res.json();
-  renderTop();
-  renderSearch('A'); renderSearch('B');
+  try {
+    const res = await fetch('site/data.json');
+    if (!res.ok) throw new Error('data.json HTTP ' + res.status);
+    DATA = await res.json();
+    renderTop();
+    renderSearch('A'); renderSearch('B');
+    preset(['Alvin Kamara'], ['TreVeyon Henderson']);
+  } catch (e) {
+    document.getElementById('top10').innerHTML = 'Could not load data.json: ' + e.message + '. Refresh and try again.';
+  }
 }
 function replFor(pos) {
   const t = document.getElementById('teams').value;
@@ -95,11 +103,25 @@ function vor(p) {
   const r = replFor(p.pos);
   return {vor: (p.ppg - r.ppg) * p.games, vorPpg: p.ppg - r.ppg};
 }
-function findByName(name) { return DATA.players.find(p => p.name.toLowerCase() === name.toLowerCase()); }
+function findByName(name) { if (!DATA) return null; return DATA.players.find(p => p.name.toLowerCase() === name.toLowerCase()); }
 function preset(a, b) {
+  if (!DATA) return;
   sideA = a.map(findByName).filter(Boolean);
   sideB = b.map(findByName).filter(Boolean);
   renderSides(); renderVerdict();
+}
+function matchesQuery(p, q) {
+  const name = p.name.toLowerCase();
+  if (name.includes(q)) return true;
+  const tokens = name.split(/[^a-z]+/).filter(Boolean);
+  return q.split(/\s+/).filter(Boolean).every(qt => tokens.some(tok => tok.startsWith(qt)));
+}
+function addFirst(side) {
+  if (!DATA) return;
+  const q = (document.getElementById('search' + side).value || '').toLowerCase().trim();
+  if (!q) return;
+  const hits = DATA.players.filter(p => matchesQuery(p, q));
+  if (hits.length) addPlayer(side, hits[0].id);
 }
 function clearAll() { sideA = []; sideB = []; renderSides(); renderVerdict(); }
 function addPlayer(side, id) {
@@ -118,15 +140,16 @@ function removePlayer(side, id) {
 function renderSearch(side) {
   const q = (document.getElementById('search' + side).value || '').toLowerCase().trim();
   const el = document.getElementById('list' + side);
-  if (!q) { el.innerHTML = '<p class="muted">Type at least 2 letters to search 519 players.</p>'; return; }
-  const hits = DATA.players.filter(p => p.name.toLowerCase().includes(q)).slice(0, 12);
+  if (!DATA) { el.innerHTML = '<p class="muted">Loading players...</p>'; return; }
+  if (!q) { el.innerHTML = '<p class="muted">Type at least 2 letters to search 519 players, then tap a name to add them.</p>'; return; }
+  const hits = DATA.players.filter(p => matchesQuery(p, q)).slice(0, 12);
   el.innerHTML = hits.map(p => `<div class="pick" onclick="addPlayer('${side}','${p.id}')"><span>${p.name} (${p.pos}, ${p.team})</span><span>${p.ros} pts, ${p.ppg}/g</span></div>`).join('') || '<p class="muted">No match.</p>';
 }
 function playerHtml(p, side) {
   const v = vor(p);
   return `<div class="player"><h3>${p.name} (${p.pos}, ${p.team}) <button class="ghost small" onclick="removePlayer('${side}','${p.id}')">Remove</button></h3>
   <div>ROS blended <b>${p.ros}</b> in ${p.games}g, ${p.ppg}/g (raw Sleeper ${p.raw}, sched-adj ${p.sched}), VOR <b>${v.vor.toFixed(1)}</b></div>
-  <div class="muted">Actual W1-9: ${p.actual} in ${p.games ? '' : ''}pts, ${p.actual_ppg}/g, last-3 ${p.last3_ppg}/g in ${p.last3_games}g, form ${p.form_ppg}/g. Usage: ${p.touches_pg} touches/g, ${p.targets_pg} targets/g. Byes: ${p.byes.length ? p.byes.join(', ') : 'none'}.</div>
+  <div class="muted">Actual W1-9: ${p.actual} pts, ${p.actual_ppg}/g, last-3 ${p.last3_ppg}/g in ${p.last3_games}g, form ${p.form_ppg}/g. Usage: ${p.touches_pg} touches/g, ${p.targets_pg} targets/g. Byes: ${p.byes.length ? p.byes.join(', ') : 'none'}.</div>
   <div class="weekly">${p.weekly.map(w => `W${w[0]}: ${w[1]} vs ${w[2]} x${w[3]} = ${w[4]}`).join(' &nbsp;|&nbsp; ')}</div></div>`;
 }
 function renderSides() {
@@ -164,7 +187,7 @@ function renderTop() {
   document.getElementById('top10').innerHTML = top.map((p,i) => `<div>${i+1}. ${p.name} (${p.pos}, ${p.team}): ${p.ros} pts, ${p.ppg}/g in ${p.games}g</div>`).join('');
 }
 document.getElementById('teams').addEventListener('change', () => { renderSides(); renderVerdict(); });
-preset(['Alvin Kamara'], ['TreVeyon Henderson']);
+renderSides();
 load();
 </script>
 </body>
