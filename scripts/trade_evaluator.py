@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-Trade Evaluator v1 - Ron / Lemonheads
+Trade Evaluator v1
 Half-PPR, Sleeper (Rotowire) projections, ROS Weeks 10-17, 2026.
-Method, same spirit as the Oct 27-28 / Oct 31 trade sheets:
   ROS total = sum of Sleeper pts_half_ppr, Weeks 10-17.
   Bye weeks = no opponent / no projection, counted as 0.
   ROS PPG = ROS total / games with a projection.
@@ -14,8 +13,8 @@ Method, same spirit as the Oct 27-28 / Oct 31 trade sheets:
   a trade just by scoring a lot in a 1QB league.
 No ESPN login, no private league data. Public Sleeper data only.
 Usage:
-  python3 trade_evaluator.py "Alvin Kamara" --vs "TreVeyon Henderson"
-  python3 trade_evaluator.py "Chase Brown, Aaron Jones Sr." --vs "Deebo Samuel Sr., A.J. Brown"
+  python3 trade_evaluator.py "Player One" --vs "Player Two"
+  python3 trade_evaluator.py "Player One, Player Two" --vs "Player Three, Player Four"
   python3 trade_evaluator.py --top RB 20
 """
 import json, os, sys, argparse
@@ -155,7 +154,7 @@ def main():
 
     if not args.side_a or not args.side_b:
         ap.print_help()
-        print("\nExample: python3 trade_evaluator.py \"Alvin Kamara\" --vs \"TreVeyon Henderson\"")
+        print("\nExample: python3 trade_evaluator.py \"Player One\" --vs \"Player Two\"")
         return
 
     a_rows = parse_side(args.side_a)

@@ -1,12 +1,10 @@
-# Fantasy Trade Evaluator - Lemonheads
+# Fantasy Trade Evaluator
 
 Live site (GitHub Pages, after enabling Pages in Settings, main branch, root): https://rd3-lil.github.io/Trade-Model/
 
-Build trade scenarios on the site: search and add players to Side A and Side B, pick league size 10 / 12 / 14 teams, see raw Sleeper ROS totals (v3, backtested), VOR, verdict and grades. Presets included: Kamara vs Henderson, Montgomery vs Price, Moldy Cheddar trade.
+Build trade scenarios on the site: search and add players to Side A and Side B, pick league size 10 / 12 / 14 teams, see raw Sleeper ROS totals (v3, backtested), VOR, verdict and grades.
 
-Half-PPR, redraft, ESPN league (Lemonheads). Public Sleeper data only, no ESPN login.
-
-Half-PPR, redraft, ESPN league (Lemonheads). Public Sleeper data only, no ESPN login.
+Half-PPR, redraft. Public Sleeper data only, no ESPN login.
 
 ## Data pulled (Nov 9-10, 2026)
 Folder: `data/raw/`, about 43 MB total after Weeks 11-17 projections.
@@ -38,30 +36,18 @@ Method:
 
 Usage:
 ```
-python3 scripts/trade_evaluator.py "Alvin Kamara" --vs "TreVeyon Henderson"
-python3 scripts/trade_evaluator.py "Chase Brown, Aaron Jones Sr." --vs "Deebo Samuel Sr., A.J. Brown"
+python3 scripts/trade_evaluator.py "Player One" --vs "Player Two"
+python3 scripts/trade_evaluator.py "Player One, Player Two" --vs "Player Three, Player Four"
 python3 scripts/trade_evaluator.py --top RB 15
 ```
-
-## Test results (Nov 10, 2026, Weeks 10-17)
-- Kamara vs Henderson: Kamara 49.0 pts (6.13/g, 8g) vs Henderson 34.3 (4.90/g, 7g, bye Week 11). Raw diff 14.7, VOR diff 4.7, grades C vs C-. Both are below replacement RB24 (10.11/g), so this is bench-for-bench, usable value is close.
-  Note the flip: Oct 27 Razzball had Henderson ahead ROS half-PPR 82.0 vs Kamara 74.5. Sleeper/Rotowire now has Kamara ahead, Henderson last-3 is 3.3/g vs Kamara 8.05/g. Different projection source, do not treat either as settled.
-- David Montgomery vs Jadarian Price: Montgomery 76.5 (9.56/g, 8g) vs Price 53.2 (7.59/g, 7g). Raw diff 23.3, VOR diff 13.2, grades C+ vs C-. Same winner as Oct 31 (Montgomery won by 39.2 Weeks 9-17 then).
-- Moldy Cheddar trade, Oct 27: Chase Brown, Aaron Jones Sr., Denzel Boston, Justin Jefferson 352.8 ROS, VOR 26.3 vs Deebo Samuel Sr., A.J. Brown, Breece Hall, Braelon Allen 272.5 ROS, VOR -33.7. Raw diff 80.3, VOR diff 60.0, grades A vs C. Same winner as Oct 27 (A- vs C+ then).
-- Top RB ROS: Jahmyr Gibbs 187.2 (23.4/g), Christian McCaffrey 155.0, Kenneth Walker III 154.1, Bijan Robinson 129.9 (7g), Bucky Irving 113.5 (16.21/g, 7g, bye Week 10, no Week 10 projection).
 
 
 ## Trade Evaluator v3.1 (Nov 10, 2026, 1 FLEX)
 
-Ron's league has 1 FLEX (RB/WR/TE), confirmed from his Oct 27 roster screenshot (Tyler Allgeier at flex). Replacement now fills positional starters first, then fills the 12 flex spots greedily with the best remaining RB/WR/TE. At 12 teams the flex fills are 8 WR + 4 RB, 0 TE.
+Default league has 1 FLEX (RB/WR/TE). Replacement fills positional starters first, then fills the 12 flex spots greedily with the best remaining RB/WR/TE. At 12 teams the flex fills are 8 WR + 4 RB, 0 TE.
 
 12-team replacement, v3.1: QB 19.08 (Bryce Young, rank 12, unchanged), RB 9.48 (Travis Etienne Jr., rank 28, was 10.11 rank 24), WR 9.47 (Tre Tucker, rank 32, was 10.98 rank 24), TE 8.88 (Brenton Strange, rank 12, unchanged).
 
-v3.1 test results:
-- Kamara vs Henderson: VOR -26.8 vs -32.1, diff 5.3, grades C vs C- (v3 no-flex: -31.8 vs -36.5, diff 4.7)
-- Dak vs Stafford: unchanged, VOR -8.7 vs -29.3, diff 20.6, B vs C (QB has no flex)
-- Moldy Cheddar: VOR 58.9 vs -2.3, diff 61.2, A vs C (v3: 26.3 vs -33.7, diff 60.0)
-- Montgomery vs Price: VOR 0.6 vs -13.2, diff 13.8, C+ vs C- (v3: -4.4 vs -17.6, diff 13.2)
 
 Note on negative VOR: most of the 519 players are negative, by design. Only the top 12 QBs, 28 RBs, 32 WRs, and 12 TEs are positive. A negative VOR means bench or waiver level, not worthless, and a trade can still be a win if your side is less negative.
 
@@ -82,10 +68,6 @@ By position, raw MAE: QB 6.03, RB 4.74, WR 4.15, TE 3.38. Schedule adjustment wa
 
 Conclusion: the v2 blend does not earn its keep, and the schedule factor hurts. v3 is raw Sleeper ROS, with form and schedule-adjusted totals kept in the data for transparency. Old blend is still available with `--blend` in `trade_evaluator_v2.py`.
 
-v3 test results, Weeks 10-17:
-- Kamara vs Henderson: 49.0 vs 34.3, VOR diff 4.7, grades C vs C- (back to v1; v2 blend had inflated it to 56.3 vs 35.1, VOR diff 10.1)
-- Dak Prescott vs Matthew Stafford: 124.9 vs 104.3, VOR diff 20.6, grades B vs C (v2 blend had 130.4 vs 100.9, VOR diff 29.4, B+ vs C)
-- Moldy Cheddar trade: 352.8 vs 272.5, VOR diff 60.0, grades A vs C, same winner as v1 and Oct 27
 
 Caveat: this backtest is only 3 weeks. The raw vs blend gap is small (0.02 MAE), so do not over-claim it. The schedule-factor harm is the more consistent signal, it lost in all 4 positions.
 
@@ -94,16 +76,10 @@ Script: `scripts/trade_evaluator_v2.py`
 
 What v2 adds:
 1. Configurable league: `--teams 10/12/14`, `--qb`, `--rb`, `--wr`, `--te`. Replacement rank = teams * starters. Default 12 teams, 1 QB / 2 RB / 2 WR / 1 TE. Replacement moves sensibly: RB24 is 11.14/g at 12 teams, 11.52/g at 10 teams (Chase Brown), 9.54/g at 14 teams (Cam Skattebo).
-2. Blended ROS: 65% schedule-adjusted Sleeper + 35% form, where form = 60% last-3 PPG (Weeks 7-9) + 40% season PPG (Weeks 1-9). If fewer than 2 games in Weeks 7-9, form falls back to season PPG. Example: Henderson only played 1 game in Weeks 7-9 (Week 7, 3.3 pts), so his form is his season 5.22/g, not 3.3/g.
+2. Blended ROS: 65% schedule-adjusted Sleeper + 35% form, where form = 60% last-3 PPG (Weeks 7-9) + 40% season PPG (Weeks 1-9). If fewer than 2 games in Weeks 7-9, form falls back to season PPG.
 3. Schedule adjustment: each weekly projection multiplied by opp_allowed / league_avg_allowed for that position, capped 0.85 to 1.15. Opponent defense from actuals Weeks 1-9, in `data/derived/opponent_defense_vs_pos.json`. League averages allowed per team-game: QB 17.16, RB 19.6, WR 25.88, TE 11.13. Easiest RB defenses: NO 25.56, CAR 25.24, LV 24.13. Toughest RB: TB 13.44, JAX 15.24, DET 15.81.
-4. Usage shown for context, not double-counted: touches/g = rush_att + rec, targets/g = rec_tgt, snap share = off_snp / tm_off_snp. Sleeper fields are sparse, missing counts as 0, so treat as directional. Kamara: 10.3 touches/g, 4.4 targets/g, 40% snap. Henderson: 9.5 touches/g, 1.2 targets/g, 30% snap, last-3 touches 5.0/g in his 1 game.
+4. Usage shown for context, not double-counted: touches/g = rush_att + rec, targets/g = rec_tgt, snap share = off_snp / tm_off_snp. Sleeper fields are sparse, missing counts as 0, so treat as directional.
 
-Test results v2, Weeks 10-17:
-- Kamara vs Henderson: blended 56.3 vs 35.1, diff 21.2, VOR diff 10.1, grades C+ vs C-. Same winner as v1 (49.0 vs 34.3, VOR diff 4.7), gap bigger because form and schedule both favor Kamara (CAR twice at x1.15, GB x1.15).
-- Montgomery vs Price: blended 72.1 vs 51.0, diff 21.1, VOR diff 10.0, grades C+ vs C-. Same winner as v1 and Oct 31.
-- Moldy Cheddar trade: blended 327.9 vs 278.4, diff 49.5, VOR diff 27.6, grades B+ vs C. Same winner as v1 (80.3 raw, 60.0 VOR) and Oct 27.
-- Top RB blended: Gibbs 170.1, Walker 153.5, McCaffrey 150.8, Cook 130.9, Pollard 128.0 (raw only 94.8, form pulls him up, a good example of blend overreacting to recent form).
-- Reproduce v1 with: `--no-blend --no-schedule`
 
 ## Honest limits
 - Projections are Rotowire via Sleeper, not a backtested model yet. Blend weights (65/35, 60/40, cap 0.85-1.15) are starting points, not backtested.
@@ -115,6 +91,6 @@ Test results v2, Weeks 10-17:
 - League size / lineup (10 vs 12 team, superflex, TE premium)
 - Blend Sleeper projections with actuals (last-3, usage, snap share from nflverse)
 - Add schedule strength / opponent defense vs position
-- Weekly matchup win probability for Lemonheads
+- Weekly matchup win probability
 - Waiver wire / start-sit view
 - GitHub repo, public, code and method only, no private league data

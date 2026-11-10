@@ -43,10 +43,6 @@
       <option value="12" selected>12 teams (default)</option>
       <option value="14">14 teams</option>
     </select>
-    <p class="muted" style="margin:10px 0 0">Presets:</p>
-    <button class="ghost preset" onclick="preset(['Alvin Kamara'], ['TreVeyon Henderson'])">Kamara vs Henderson</button>
-    <button class="ghost preset" onclick="preset(['David Montgomery'], ['Jadarian Price'])">Montgomery vs Price</button>
-    <button class="ghost preset" onclick="preset(['Chase Brown','Aaron Jones Sr.','Denzel Boston','Justin Jefferson'], ['Deebo Samuel Sr.','A.J. Brown','Breece Hall','Braelon Allen'])">Moldy Cheddar trade</button>
     <button class="ghost preset" onclick="clearAll()">Clear</button>
   </div>
 
@@ -90,7 +86,6 @@ async function load() {
     DATA = await res.json();
     renderTop();
     renderSearch('A'); renderSearch('B');
-    preset(['Alvin Kamara'], ['TreVeyon Henderson']);
   } catch (e) {
     document.getElementById('top10').innerHTML = 'Could not load data.json: ' + e.message + '. Refresh and try again.';
   }
@@ -102,13 +97,6 @@ function replFor(pos) {
 function vor(p) {
   const r = replFor(p.pos);
   return {vor: (p.ppg - r.ppg) * p.games, vorPpg: p.ppg - r.ppg};
-}
-function findByName(name) { if (!DATA) return null; return DATA.players.find(p => p.name.toLowerCase() === name.toLowerCase()); }
-function preset(a, b) {
-  if (!DATA) return;
-  sideA = a.map(findByName).filter(Boolean);
-  sideB = b.map(findByName).filter(Boolean);
-  renderSides(); renderVerdict();
 }
 function matchesQuery(p, q) {
   const name = p.name.toLowerCase();

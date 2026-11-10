@@ -5,7 +5,7 @@ qs="&".join(f"position[]={p}" for p in POS)
 def fetch(url, out):
     for i in range(3):
         try:
-            req=urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0 (Ron fantasy model; personal use)"})
+            req=urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0 (fantasy trade model; personal use)"})
             with urllib.request.urlopen(req, timeout=60) as r:
                 data=r.read()
             with open(out,"wb") as f: f.write(data)

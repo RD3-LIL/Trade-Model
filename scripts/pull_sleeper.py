@@ -10,7 +10,7 @@ def qs_pos():
 def fetch(url, out_path, retries=3):
     for i in range(retries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0 (RonPom fantasy model; personal use)"})
+            req = urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0 (fantasy trade model; personal use)"})
             with urllib.request.urlopen(req, timeout=60) as r:
                 data = r.read()
             with open(out_path, "wb") as f:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Trade Evaluator v2 - Ron / Lemonheads
+Trade Evaluator v2
 Half-PPR, Sleeper (Rotowire) projections, ROS Weeks 10-17, 2026.
 No ESPN league data needed. Everything below is from public Sleeper data.
 
@@ -33,10 +33,10 @@ What v2 adds over v1:
    usage as directional, not exact.
 
 Usage:
-  python3 trade_evaluator_v2.py "Alvin Kamara" --vs "TreVeyon Henderson"
-  python3 trade_evaluator_v2.py "Chase Brown, Justin Jefferson" --vs "A.J. Brown, Breece Hall" --teams 10
+  python3 trade_evaluator_v2.py "Player One" --vs "Player Two"
+  python3 trade_evaluator_v2.py "Player One, Player Two" --vs "Player Three, Player Four" --teams 10
   python3 trade_evaluator_v2.py --top RB 15 --teams 12
-  python3 trade_evaluator_v2.py "Alvin Kamara" --vs "TreVeyon Henderson" --no-blend --no-schedule
+  python3 trade_evaluator_v2.py "Player One" --vs "Player Two" --no-blend --no-schedule
     (reproduces v1, pure Sleeper ROS)
 """
 import json, os, sys, argparse
@@ -61,7 +61,7 @@ def main():
     ap.add_argument("--rb", type=int, default=2)
     ap.add_argument("--wr", type=int, default=2)
     ap.add_argument("--te", type=int, default=1)
-    ap.add_argument("--flex", type=int, default=1, help="flex spots, RB/WR/TE, default 1 (Ron's league)")
+    ap.add_argument("--flex", type=int, default=1, help="flex spots, RB/WR/TE, default 1")
     ap.add_argument("--blend", action="store_true", help="re-enable old v2 blend: 65% schedule-adjusted Sleeper + 35% form")
     ap.add_argument("--no-blend", action="store_true", help="pure Sleeper ROS (now the default)")
     ap.add_argument("--no-schedule", action="store_true", help="skip opponent adjustment")
