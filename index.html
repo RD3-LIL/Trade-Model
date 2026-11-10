@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fantasy Trade Evaluator, Weeks 10-17, 2026</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 26px; margin: 6px 0 4px; }
+  .sub { color: #94a3b8; margin: 0 0 16px; line-height: 1.5; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin: 12px 0; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+  input, select, button { font-size: 16px; padding: 10px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; width: 100%; box-sizing: border-box; }
+  button { background: #16a34a; border-color: #16a34a; color: white; cursor: pointer; font-weight: 600; }
+  button.ghost { background: transparent; border-color: #475569; color: #e2e8f0; }
+  button.small { width: auto; padding: 6px 10px; font-size: 14px; }
+  .search-list { max-height: 220px; overflow: auto; margin-top: 8px; }
+  .pick { display: flex; justify-content: space-between; gap: 8px; padding: 8px; border-bottom: 1px solid #334155; cursor: pointer; }
+  .pick:hover { background: #334155; }
+  .player { border: 1px solid #334155; border-radius: 10px; padding: 12px; margin: 8px 0; background: #0f172a; }
+  .player h3 { margin: 0 0 4px; font-size: 17px; }
+  .muted { color: #94a3b8; font-size: 14px; line-height: 1.5; }
+  .big { font-size: 22px; font-weight: 700; }
+  .win { color: #4ade80; } .lose { color: #f87171; }
+  .weekly { font-size: 13px; color: #cbd5e1; line-height: 1.7; }
+  .preset { margin: 4px 6px 4px 0; width: auto; display: inline-block; }
+  .totals { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; text-align: center; }
+  @media (max-width: 640px) { .totals { grid-template-columns: 1fr; } }
+  a { color: #7dd3fc; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Fantasy Trade Evaluator</h1>
+  <p class="sub">Half-PPR, rest of season Weeks 10-17, 2026. Blended v2: 65% schedule-adjusted Sleeper (Rotowire) projections plus 35% form (60% last-3 plus 40% season). Verdict is on value over replacement, not raw points, so a QB does not win just by scoring a lot in 1QB. Data pulled Nov 9-10, 2026. No league login, public Sleeper data only.</p>
+
+  <div class="card">
+    <label class="muted">League size (replacement level changes with this)</label>
+    <select id="teams">
+      <option value="10">10 teams</option>
+      <option value="12" selected>12 teams (default)</option>
+      <option value="14">14 teams</option>
+    </select>
+    <p class="muted" style="margin:10px 0 0">Presets:</p>
+    <button class="ghost preset" onclick="preset(['Alvin Kamara'], ['TreVeyon Henderson'])">Kamara vs Henderson</button>
+    <button class="ghost preset" onclick="preset(['David Montgomery'], ['Jadarian Price'])">Montgomery vs Price</button>
+    <button class="ghost preset" onclick="preset(['Chase Brown','Aaron Jones Sr.','Denzel Boston','Justin Jefferson'], ['Deebo Samuel Sr.','A.J. Brown','Breece Hall','Braelon Allen'])">Moldy Cheddar trade</button>
+    <button class="ghost preset" onclick="clearAll()">Clear</button>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h2>Side A</h2>
+      <input id="searchA" placeholder="Search a player, e.g. Jahmyr Gibbs" oninput="renderSearch('A')">
+      <div class="search-list" id="listA"></div>
+      <div id="sideA"></div>
+    </div>
+    <div class="card">
+      <h2>Side B</h2>
+      <input id="searchB" placeholder="Search a player, e.g. Justin Jefferson" oninput="renderSearch('B')">
+      <div class="search-list" id="listB"></div>
+      <div id="sideB"></div>
+    </div>
+  </div>
+
+  <div class="card" id="verdict"><p class="muted">Add at least one player to each side to see a verdict.</p></div>
+
+  <div class="card">
+    <h2>Top 10 by blended ROS</h2>
+    <div id="top10" class="muted">Loading data.json...</div>
+  </div>
+
+  <div class="card">
+    <h2>Method, in plain English</h2>
+    <p class="muted">ROS total is blended points per game times games with a projection, Weeks 10-17. Bye weeks count as 0. Schedule factor is opponent points allowed to that position, divided by league average, capped 0.85 to 1.15, from actuals Weeks 1-9. Form is 60% last-3 games plus 40% season, and if a player has fewer than 2 games in Weeks 7-9, form falls back to season average. Replacement is the blended points per game at the starter cutoff: QB12, RB24, WR24, TE12 in a 12-team league. Grades are on VOR difference: 40+ A, 25+ B+, 15+ B, 8+ C+, 3+ C, under 3 a wash. Blend weights are a starting point, not backtested. Injury and role change are not in this, beyond what Rotowire already bakes in.</p>
+    <p class="muted">Source: Sleeper API, Rotowire projections. Code and method are in this repo, in scripts/trade_evaluator_v2.py. Raw Sleeper files are not in the repo, they are about 42 MB, re-pull them with scripts/pull_sleeper.py.</p>
+  </div>
+</div>
+<script>
+let DATA = null;
+let sideA = [], sideB = [];
+async function load() {
+  const res = await fetch('site/data.json');
+  DATA = await res.json();
+  renderTop();
+  renderSearch('A'); renderSearch('B');
+}
+function replFor(pos) {
+  const t = document.getElementById('teams').value;
+  return DATA.replacement[t][pos] || {ppg: 0, name: '', rank: 0};
+}
+function vor(p) {
+  const r = replFor(p.pos);
+  return {vor: (p.ppg - r.ppg) * p.games, vorPpg: p.ppg - r.ppg};
+}
+function findByName(name) { return DATA.players.find(p => p.name.toLowerCase() === name.toLowerCase()); }
+function preset(a, b) {
+  sideA = a.map(findByName).filter(Boolean);
+  sideB = b.map(findByName).filter(Boolean);
+  renderSides(); renderVerdict();
+}
+function clearAll() { sideA = []; sideB = []; renderSides(); renderVerdict(); }
+function addPlayer(side, id) {
+  const p = DATA.players.find(x => x.id === id);
+  if (!p) return;
+  const arr = side === 'A' ? sideA : sideB;
+  if (!arr.find(x => x.id === id)) arr.push(p);
+  document.getElementById('search' + side).value = '';
+  renderSearch(side); renderSides(); renderVerdict();
+}
+function removePlayer(side, id) {
+  if (side === 'A') sideA = sideA.filter(x => x.id !== id);
+  else sideB = sideB.filter(x => x.id !== id);
+  renderSides(); renderVerdict();
+}
+function renderSearch(side) {
+  const q = (document.getElementById('search' + side).value || '').toLowerCase().trim();
+  const el = document.getElementById('list' + side);
+  if (!q) { el.innerHTML = '<p class="muted">Type at least 2 letters to search 519 players.</p>'; return; }
+  const hits = DATA.players.filter(p => p.name.toLowerCase().includes(q)).slice(0, 12);
+  el.innerHTML = hits.map(p => `<div class="pick" onclick="addPlayer('${side}','${p.id}')"><span>${p.name} (${p.pos}, ${p.team})</span><span>${p.ros} pts, ${p.ppg}/g</span></div>`).join('') || '<p class="muted">No match.</p>';
+}
+function playerHtml(p, side) {
+  const v = vor(p);
+  return `<div class="player"><h3>${p.name} (${p.pos}, ${p.team}) <button class="ghost small" onclick="removePlayer('${side}','${p.id}')">Remove</button></h3>
+  <div>ROS blended <b>${p.ros}</b> in ${p.games}g, ${p.ppg}/g (raw Sleeper ${p.raw}, sched-adj ${p.sched}), VOR <b>${v.vor.toFixed(1)}</b></div>
+  <div class="muted">Actual W1-9: ${p.actual} in ${p.games ? '' : ''}pts, ${p.actual_ppg}/g, last-3 ${p.last3_ppg}/g in ${p.last3_games}g, form ${p.form_ppg}/g. Usage: ${p.touches_pg} touches/g, ${p.targets_pg} targets/g. Byes: ${p.byes.length ? p.byes.join(', ') : 'none'}.</div>
+  <div class="weekly">${p.weekly.map(w => `W${w[0]}: ${w[1]} vs ${w[2]} x${w[3]} = ${w[4]}`).join(' &nbsp;|&nbsp; ')}</div></div>`;
+}
+function renderSides() {
+  document.getElementById('sideA').innerHTML = sideA.map(p => playerHtml(p, 'A')).join('') || '<p class="muted">No players yet.</p>';
+  document.getElementById('sideB').innerHTML = sideB.map(p => playerHtml(p, 'B')).join('') || '<p class="muted">No players yet.</p>';
+}
+function grades(diff) {
+  const a = Math.abs(diff);
+  if (a >= 40) return ['A','C'];
+  if (a >= 25) return ['B+','C'];
+  if (a >= 15) return ['B','C'];
+  if (a >= 8) return ['C+','C-'];
+  if (a >= 3) return ['C','C-'];
+  return ['C','C'];
+}
+function renderVerdict() {
+  const el = document.getElementById('verdict');
+  if (!sideA.length || !sideB.length) { el.innerHTML = '<p class="muted">Add at least one player to each side to see a verdict.</p>'; return; }
+  const tot = arr => arr.reduce((s,p) => s + p.ros, 0);
+  const totVor = arr => arr.reduce((s,p) => s + vor(p).vor, 0);
+  const aRos = tot(sideA), bRos = tot(sideB), aVor = totVor(sideA), bVor = totVor(sideB);
+  const diff = aVor - bVor;
+  const winner = diff > 0 ? 'Side A' : diff < 0 ? 'Side B' : 'Even';
+  const g = grades(diff);
+  el.innerHTML = `<h2>Verdict</h2>
+  <div class="totals">
+    <div><div class="muted">Side A ROS</div><div class="big">${aRos.toFixed(1)} pts</div><div class="muted">VOR ${aVor.toFixed(1)}</div></div>
+    <div><div class="muted">Side B ROS</div><div class="big">${bRos.toFixed(1)} pts</div><div class="muted">VOR ${bVor.toFixed(1)}</div></div>
+    <div><div class="muted">Winner</div><div class="big ${diff>0?'win':diff<0?'lose':''}">${winner} by ${Math.abs(diff).toFixed(1)} VOR</div><div class="muted">Grades: winner ${g[0]}, loser ${g[1]}</div></div>
+  </div>
+  <p class="muted">Raw ROS difference is ${(aRos-bRos).toFixed(1)} points. The verdict uses VOR, so bench players below replacement count less than their raw total suggests.</p>`;
+}
+function renderTop() {
+  const top = [...DATA.players].sort((a,b) => b.ros - a.ros).slice(0,10);
+  document.getElementById('top10').innerHTML = top.map((p,i) => `<div>${i+1}. ${p.name} (${p.pos}, ${p.team}): ${p.ros} pts, ${p.ppg}/g in ${p.games}g</div>`).join('');
+}
+document.getElementById('teams').addEventListener('change', () => { renderSides(); renderVerdict(); });
+preset(['Alvin Kamara'], ['TreVeyon Henderson']);
+load();
+</script>
+</body>
+</html>
