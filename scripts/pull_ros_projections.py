@@ -16,5 +16,5 @@ def fetch(url, out):
         except Exception as e:
             print(f"FAIL {i+1} {url}: {e}"); time.sleep(2)
     return None
-for week in range(11,18):
+for week in range(1,18):  # Weeks 1-9 are needed to reproduce scripts/backtest.py
     fetch(f"https://api.sleeper.com/projections/nfl/2026/{week}?season_type=regular&{qs}", f"{BASE}/projections_2026_week{week:02d}.json")

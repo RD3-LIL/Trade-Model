@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Generate site/data.json for the GitHub Pages trade scenario builder.
-Blended v2 logic, same as trade_evaluator_v2.py, for all players with ROS.
+v3 logic (Nov 10, 2026 backtest): RAW Sleeper ROS, no blend, no schedule
+adjustment. Backtest Weeks 7-9, 692 player-weeks: raw MAE 4.36, corr 0.631,
+best overall; schedule adjustment hurt every position, 35% form blend was
+a wash. Form and schedule-adjusted totals are kept in the output for
+transparency, but ros/ppg (and replacement levels) are raw Sleeper.
 Output is compact: only players with a Week 10-17 projection.
 Also computes replacement levels for 10, 12, and 14 teams.
 """
@@ -52,10 +56,11 @@ for pid, rlist in ros.items():
         f=sched_factor(opp,pos); adj=pts*f; sched_total+=adj
         weekly.append([w,round(pts,1),opp,round(f,2),round(adj,1)])
     sched_ppg=sched_total/games if games else 0.0
-    blended_ppg=0.65*sched_ppg+0.35*form_ppg
+    blended_ppg=0.65*sched_ppg+0.35*form_ppg  # kept for transparency only, not used for ros
     rows.append({
         "id":pid,"name":name,"pos":pos,"team":team,
-        "ros":round(blended_ppg*games,1),"ppg":round(blended_ppg,2),
+        "ros":round(raw_total,1),"ppg":round(raw_ppg,2),
+        "blended":round(blended_ppg*games,1),
         "raw":round(raw_total,1),"sched":round(sched_total,1),
         "games":games,"byes":[w for w in WEEKS_ROS if w not in {x[0] for x in rlist}],
         "actual":round(act_total,1),"actual_ppg":round(act_ppg,2),
@@ -81,7 +86,8 @@ for r in rows:
 rows.sort(key=lambda x: x["ros"], reverse=True)
 out={"generated":"2026-11-10","season":2026,"window":"Weeks 10-17","scoring":"half-PPR",
      "source":"Sleeper (Rotowire) projections, pulled Nov 9-10, 2026",
-     "method":"Blended v2: 65% schedule-adjusted Sleeper + 35% form (60% last-3 + 40% season). Schedule factor opp allowed / league avg, capped 0.85-1.15, Weeks 1-9 actuals.",
+     "method":"v3 raw Sleeper (Rotowire) ROS, Weeks 10-17, half-PPR. No form blend, no schedule adjustment. Backtest Weeks 7-9, 692 player-weeks, no leakage: raw MAE 4.36, corr 0.631, best overall; schedule-adjusted MAE 4.47, corr 0.610; blend 35% form MAE 4.38, corr 0.619. Form (60% last-3 + 40% season) and schedule-adjusted totals are still in each player row for transparency.",
+     "backtest":"Weeks 7-9, 692 player-weeks, no leakage. Raw MAE 4.36 corr 0.631; sched MAE 4.47 corr 0.610; blend_0.35 MAE 4.38 corr 0.619; blend_0.50 MAE 4.40; form_only MAE 4.67. By position raw MAE: QB 6.03, RB 4.74, WR 4.15, TE 3.38. Top-50 per week raw MAE 6.10 corr 0.315. Where blend and raw disagreed by >=3 pts, raw was better in 11 of 15 cases.",
      "league_avg_allowed":league_avg,
      "replacement":repl,
      "players":rows}

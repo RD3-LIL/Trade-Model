@@ -8,7 +8,14 @@ What v2 adds over v1:
 1. Configurable league: --teams, --qb, --rb, --wr, --te
    Replacement rank = teams * starters at that position.
    Default 12 teams, 1 QB / 2 RB / 2 WR / 1 TE, same as v1.
-2. Blended ROS, not pure Rotowire:
+2. v3 default (Nov 10, 2026 backtest): RAW Sleeper ROS, no blend, no schedule
+   adjustment. Backtest Weeks 7-9 (692 player-weeks, no leakage): raw MAE 4.36,
+   corr 0.631, best overall. Schedule adjustment hurt in every position
+   (MAE 4.47, corr 0.610) and the 35% form blend was a wash at best
+   (blend_0.35 MAE 4.38, corr 0.619; where blend and raw disagreed by >=3
+   pts, raw was better in 11 of 15 cases). Use --blend to re-enable the
+   old v2 blend (65% schedule-adjusted Sleeper + 35% form) for comparison.
+   Old v2 blend, for reference:
    - Schedule-adjusted ROS: each weekly projection is multiplied by
      opp_allowed / league_avg_allowed for that position, capped 0.85 to 1.15.
      Opponent defense is from actuals Weeks 1-9, saved in
@@ -54,7 +61,8 @@ def main():
     ap.add_argument("--rb", type=int, default=2)
     ap.add_argument("--wr", type=int, default=2)
     ap.add_argument("--te", type=int, default=1)
-    ap.add_argument("--no-blend", action="store_true", help="pure Sleeper ROS, like v1")
+    ap.add_argument("--blend", action="store_true", help="re-enable old v2 blend: 65% schedule-adjusted Sleeper + 35% form")
+    ap.add_argument("--no-blend", action="store_true", help="pure Sleeper ROS (now the default)")
     ap.add_argument("--no-schedule", action="store_true", help="skip opponent adjustment")
     args = ap.parse_args()
 
@@ -147,11 +155,18 @@ def main():
             sched_total += adj
             sched_rows.append((w, round(pts, 1), opp, round(f, 2), round(adj, 1)))
         sched_ppg = sched_total / games if games else 0.0
-        if args.no_blend:
-            blended_ppg = sched_ppg if not args.no_schedule else raw_ppg
+        if args.blend:
+            # old v2 blend, kept for comparison only; backtest says it does not help
+            blended_ppg = 0.65 * sched_ppg + 0.35 * form_ppg
+            blended_total = blended_ppg * games
+        elif args.no_schedule:
+            blended_ppg = raw_ppg
+            blended_total = blended_ppg * games
+        elif args.no_blend:
+            blended_ppg = sched_ppg
             blended_total = blended_ppg * games
         else:
-            blended_ppg = 0.65 * sched_ppg + 0.35 * form_ppg
+            blended_ppg = raw_ppg
             blended_total = blended_ppg * games
         byes = [w for w in WEEKS_ROS if w not in {x[0] for x in r}]
         return {
@@ -179,9 +194,9 @@ def main():
         else:
             repl[pos] = 0.0
     print(f"League: {args.teams} teams, {args.qb} QB / {args.rb} RB / {args.wr} WR / {args.te} TE starters")
-    print(f"Blend: {'OFF (pure Sleeper)' if args.no_blend else 'ON: 65% schedule-adjusted Sleeper + 35% form (60% last-3 + 40% season)'}")
-    print(f"Schedule: {'OFF' if args.no_schedule else 'ON: opp allowed / league avg, capped 0.85-1.15, Weeks 1-9 actuals'}")
-    print("Replacement levels (blended ROS PPG):")
+    print(f"Blend: {'ON (old v2, backtest says it does not help): 65% schedule-adjusted Sleeper + 35% form (60% last-3 + 40% season)' if args.blend else 'OFF (v3 default, raw Sleeper)'}")
+    print(f"Schedule: {'OFF (v3 default; backtest: schedule adjustment hurt every position)' if not args.blend else 'ON via --blend: opp allowed / league avg, capped 0.85-1.15, Weeks 1-9 actuals'}")
+    print("Replacement levels (ROS PPG, v3 raw):")
     for pos in ["QB","RB","WR","TE"]:
         print(f"  {pos}: {repl[pos]} ({repl.get(pos+'_name','')}, rank {repl.get(pos+'_rank','')})")
     print()
@@ -215,18 +230,18 @@ def main():
         print(f"{label}:")
         for r in rows:
             u = r["usage"]
-            print(f"  {r['name']} ({r['pos']}, {r['team']}): ROS blended {r['ros_total']} in {r['ros_games']}g, {r['ros_ppg']}/g "
+            print(f"  {r['name']} ({r['pos']}, {r['team']}): ROS {r['ros_total']} in {r['ros_games']}g, {r['ros_ppg']}/g "
                   f"(raw Sleeper {r['raw_ros_total']}, sched-adj {r['sched_ros_total']}), VOR {r['vor_total']} | "
                   f"Actual W1-9: {r['actual_total']} in {r['actual_games']}g, {r['actual_ppg']}/g, last3 {r['last3_ppg']}/g in {r['last3_games']}g, form {r['form_ppg']}/g | Byes: {r['bye_weeks_ros'] or 'none'}")
             print(f"    Usage: touches {u['touches_pg']}/g (last3 {u['touches_last3']}), targets/att {u['targets_pg']}/g (last3 {u['targets_last3']}), snap {u['snap_pg']:.0%} (Sleeper fields sparse, directional only)")
             print(f"    Weekly: {', '.join(f'W{w}:{pts} vs {opp} x{f}={adj}' for w, pts, opp, f, adj in r['sched_rows'])}")
-        print(f"  TOTAL: ROS blended {round(sum(r['ros_total'] for r in rows),1)} pts, VOR {round(sum(r['vor_total'] for r in rows),1)} pts")
+        print(f"  TOTAL: ROS {round(sum(r['ros_total'] for r in rows),1)} pts, VOR {round(sum(r['vor_total'] for r in rows),1)} pts")
         return sum(r["ros_total"] for r in rows), sum(r["vor_total"] for r in rows)
 
     if args.top:
         pos, n = args.top[0].upper(), int(args.top[1])
         ranked = sorted([with_vor(r) for r in all_rows if r["pos"] == pos], key=lambda x: x["ros_total"], reverse=True)[:n]
-        print(f"Top {n} {pos} by blended ROS total, Weeks 10-17:")
+        print(f"Top {n} {pos} by ROS total, Weeks 10-17:")
         for i, r in enumerate(ranked, 1):
             print(f"  {i}. {r['name']} ({r['team']}): {r['ros_total']} pts, {r['ros_ppg']}/g in {r['ros_games']}g, VOR {r['vor_total']}, raw {r['raw_ros_total']}")
         return
@@ -247,13 +262,14 @@ def main():
     vor_diff = a_vor - b_vor
     winner = "Side A" if vor_diff > 0 else "Side B" if vor_diff < 0 else "Even"
     wg, lg = grades(vor_diff)
-    print(f"Verdict (on blended VOR): {winner} wins by {abs(round(vor_diff,1))} VOR pts")
-    print(f"  Blended ROS diff: {round(a_ros-b_ros,1)} pts (A {round(a_ros,1)} vs B {round(b_ros,1)})")
+    print(f"Verdict (on VOR): {winner} wins by {abs(round(vor_diff,1))} VOR pts")
+    print(f"  ROS diff: {round(a_ros-b_ros,1)} pts (A {round(a_ros,1)} vs B {round(b_ros,1)})")
     print(f"  VOR diff: {round(vor_diff,1)} pts (A {round(a_vor,1)} vs B {round(b_vor,1)})")
     print(f"  Grades: winner {wg}, loser {lg}")
     print()
-    print("Caveats: blend weights are a starting point, not backtested. Schedule factors are capped, "
-          "and are based on 8-9 games of opponent defense. Injury and role change are not in this.")
+    print("Caveats: v3 is raw Sleeper/Rotowire, backtested Weeks 7-9 (692 player-weeks): "
+          "MAE 4.36, corr 0.631, best of the methods tried. That is still noisy, "
+          "top-50 MAE 6.10, corr 0.315. No injury, role-change, playoff, or roster-need adjustment.")
 
 if __name__ == "__main__":
     main()
