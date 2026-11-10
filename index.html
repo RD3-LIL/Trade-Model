@@ -174,11 +174,16 @@ function renderVerdict() {
   const diff = aVor - bVor;
   const winner = diff > 0 ? 'Side A' : diff < 0 ? 'Side B' : 'Even';
   const g = grades(diff);
+  const listPlayers = arr => arr.map(p => { const v = vor(p); return `<div>${p.name} (${p.pos}, ${p.team}): <b>${p.ros.toFixed(1)} pts</b>, ${p.ppg}/g, VOR ${v.vor.toFixed(1)}</div>`; }).join('');
   el.innerHTML = `<h2>Verdict</h2>
   <div class="totals">
     <div><div class="muted">Side A ROS</div><div class="big">${aRos.toFixed(1)} pts</div><div class="muted">VOR ${aVor.toFixed(1)}</div></div>
     <div><div class="muted">Side B ROS</div><div class="big">${bRos.toFixed(1)} pts</div><div class="muted">VOR ${bVor.toFixed(1)}</div></div>
     <div><div class="muted">Winner</div><div class="big ${diff>0?'win':diff<0?'lose':''}">${winner} by ${Math.abs(diff).toFixed(1)} VOR</div><div class="muted">Grades: winner ${g[0]}, loser ${g[1]}</div></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <div><h3 style="margin:0 0 6px">Side A players</h3>${listPlayers(sideA)}</div>
+    <div><h3 style="margin:0 0 6px">Side B players</h3>${listPlayers(sideB)}</div>
   </div>
   <p class="muted">Raw ROS difference is ${(aRos-bRos).toFixed(1)} points. The verdict uses VOR, so bench players below replacement count less than their raw total suggests.</p>`;
 }
