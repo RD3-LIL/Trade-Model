@@ -51,6 +51,20 @@ python3 scripts/trade_evaluator.py --top RB 15
 - Top RB ROS: Jahmyr Gibbs 187.2 (23.4/g), Christian McCaffrey 155.0, Kenneth Walker III 154.1, Bijan Robinson 129.9 (7g), Bucky Irving 113.5 (16.21/g, 7g, bye Week 10, no Week 10 projection).
 
 
+## Trade Evaluator v3.1 (Nov 10, 2026, 1 FLEX)
+
+Ron's league has 1 FLEX (RB/WR/TE), confirmed from his Oct 27 roster screenshot (Tyler Allgeier at flex). Replacement now fills positional starters first, then fills the 12 flex spots greedily with the best remaining RB/WR/TE. At 12 teams the flex fills are 8 WR + 4 RB, 0 TE.
+
+12-team replacement, v3.1: QB 19.08 (Bryce Young, rank 12, unchanged), RB 9.48 (Travis Etienne Jr., rank 28, was 10.11 rank 24), WR 9.47 (Tre Tucker, rank 32, was 10.98 rank 24), TE 8.88 (Brenton Strange, rank 12, unchanged).
+
+v3.1 test results:
+- Kamara vs Henderson: VOR -26.8 vs -32.1, diff 5.3, grades C vs C- (v3 no-flex: -31.8 vs -36.5, diff 4.7)
+- Dak vs Stafford: unchanged, VOR -8.7 vs -29.3, diff 20.6, B vs C (QB has no flex)
+- Moldy Cheddar: VOR 58.9 vs -2.3, diff 61.2, A vs C (v3: 26.3 vs -33.7, diff 60.0)
+- Montgomery vs Price: VOR 0.6 vs -13.2, diff 13.8, C+ vs C- (v3: -4.4 vs -17.6, diff 13.2)
+
+Note on negative VOR: most of the 519 players are negative, by design. Only the top 12 QBs, 28 RBs, 32 WRs, and 12 TEs are positive. A negative VOR means bench or waiver level, not worthless, and a trade can still be a win if your side is less negative.
+
 ## Trade Evaluator v3 (Nov 10, 2026, backtested)
 
 Backtest: `scripts/backtest.py`, rolling predictions for Weeks 7-9, 692 player-weeks, no leakage (form and opponent defense use only prior weeks, projections are the pre-game Sleeper/Rotowire numbers, verified: corr 0.60-0.63 to actuals, not post-hoc).

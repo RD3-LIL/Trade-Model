@@ -68,16 +68,32 @@ for pid, rlist in ros.items():
         "touches_pg":avg(act,"touches"),"targets_pg":avg(act,"targets"),
         "weekly":weekly,
     })
-# replacement levels per team count
+# replacement levels per team count, with 1 FLEX (RB/WR/TE).
+# Fill positional starters, then fill flex greedily with the best remaining
+# RB/WR/TE. Replacement is the last player at that position in a starting
+# lineup (including flex), same last-starter convention as v1/v2.
+# At 12 teams the flex fills are 8 WR + 4 RB, so RB replacement drops
+# 10.11 -> 9.48 and WR 10.98 -> 9.47; QB and TE are unchanged.
 starters={"QB":1,"RB":2,"WR":2,"TE":1}
+FLEX=1
 repl={}
 for teams in [10,12,14]:
     repl[str(teams)]={}
+    ranked_by_pos={pos: sorted([r for r in rows if r["pos"]==pos], key=lambda x: x["ppg"], reverse=True) for pos in starters}
+    taken={pos: teams*n for pos,n in starters.items()}
+    flex_fills=[]
+    for _ in range(teams*FLEX):
+        cands=[(ranked_by_pos[pos][taken[pos]]["ppg"], pos, ranked_by_pos[pos][taken[pos]]) for pos in ["RB","WR","TE"] if taken[pos] < len(ranked_by_pos[pos])]
+        if not cands: break
+        cands.sort(key=lambda x: x[0], reverse=True)
+        _, pos, player = cands[0]
+        flex_fills.append({"pos":pos,"name":player["name"],"ppg":player["ppg"]})
+        taken[pos]+=1
+    repl[str(teams)]["flex"]=flex_fills
     for pos,n in starters.items():
-        rank=teams*n
-        ranked=sorted([r for r in rows if r["pos"]==pos], key=lambda x: x["ppg"], reverse=True)
-        if len(ranked)>=rank:
-            repl[str(teams)][pos]={"ppg":ranked[rank-1]["ppg"],"name":ranked[rank-1]["name"],"rank":rank}
+        if len(ranked_by_pos[pos])>=taken[pos]:
+            last=ranked_by_pos[pos][taken[pos]-1]
+            repl[str(teams)][pos]={"ppg":last["ppg"],"name":last["name"],"rank":taken[pos]}
 # add VOR at 12 teams as default, site recomputes for other sizes
 for r in rows:
     rep=repl["12"].get(r["pos"],{}).get("ppg",0)
@@ -86,7 +102,7 @@ for r in rows:
 rows.sort(key=lambda x: x["ros"], reverse=True)
 out={"generated":"2026-11-10","season":2026,"window":"Weeks 10-17","scoring":"half-PPR",
      "source":"Sleeper (Rotowire) projections, pulled Nov 9-10, 2026",
-     "method":"v3 raw Sleeper (Rotowire) ROS, Weeks 10-17, half-PPR. No form blend, no schedule adjustment. Backtest Weeks 7-9, 692 player-weeks, no leakage: raw MAE 4.36, corr 0.631, best overall; schedule-adjusted MAE 4.47, corr 0.610; blend 35% form MAE 4.38, corr 0.619. Form (60% last-3 + 40% season) and schedule-adjusted totals are still in each player row for transparency.",
+     "method":"v3.1 raw Sleeper (Rotowire) ROS, Weeks 10-17, half-PPR, 1 FLEX (RB/WR/TE). No form blend, no schedule adjustment. Backtest Weeks 7-9, 692 player-weeks, no leakage: raw MAE 4.36, corr 0.631, best overall; schedule-adjusted MAE 4.47, corr 0.610; blend 35% form MAE 4.38, corr 0.619. Form (60% last-3 + 40% season) and schedule-adjusted totals are still in each player row for transparency.",
      "backtest":"Weeks 7-9, 692 player-weeks, no leakage. Raw MAE 4.36 corr 0.631; sched MAE 4.47 corr 0.610; blend_0.35 MAE 4.38 corr 0.619; blend_0.50 MAE 4.40; form_only MAE 4.67. By position raw MAE: QB 6.03, RB 4.74, WR 4.15, TE 3.38. Top-50 per week raw MAE 6.10 corr 0.315. Where blend and raw disagreed by >=3 pts, raw was better in 11 of 15 cases.",
      "league_avg_allowed":league_avg,
      "replacement":repl,

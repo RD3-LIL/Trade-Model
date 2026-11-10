@@ -61,6 +61,7 @@ def main():
     ap.add_argument("--rb", type=int, default=2)
     ap.add_argument("--wr", type=int, default=2)
     ap.add_argument("--te", type=int, default=1)
+    ap.add_argument("--flex", type=int, default=1, help="flex spots, RB/WR/TE, default 1 (Ron's league)")
     ap.add_argument("--blend", action="store_true", help="re-enable old v2 blend: 65% schedule-adjusted Sleeper + 35% form")
     ap.add_argument("--no-blend", action="store_true", help="pure Sleeper ROS (now the default)")
     ap.add_argument("--no-schedule", action="store_true", help="skip opponent adjustment")
@@ -180,20 +181,39 @@ def main():
             "bye_weeks_ros": byes, "usage": usage, "sched_rows": sched_rows,
         }
 
-    # replacement, from blended PPG
+    # replacement, from ROS PPG, with flex accounted for.
+    # Fill positional starters first, then fill flex spots greedily with the
+    # best remaining RB/WR/TE. Replacement for a position is the PPG of the
+    # last player at that position in a starting lineup (including flex),
+    # the same last-starter convention as v1/v2, so QB is unchanged and
+    # RB/WR replacement drops because flex is mostly WRs and some RBs.
     all_rows = [player_row(pid) for pid in ros.keys()]
     starters = {"QB": args.qb, "RB": args.rb, "WR": args.wr, "TE": args.te, "K": 1, "DEF": 1}
+    ranked_by_pos = {}
+    for pos in starters:
+        ranked_by_pos[pos] = sorted([r for r in all_rows if r["pos"] == pos], key=lambda x: x["ros_ppg"], reverse=True)
+    taken = {pos: args.teams * n for pos, n in starters.items()}
+    flex_fills = []
+    for _ in range(args.teams * args.flex):
+        cands = [(ranked_by_pos[pos][taken[pos]]["ros_ppg"], pos, ranked_by_pos[pos][taken[pos]])
+                 for pos in ["RB", "WR", "TE"] if taken[pos] < len(ranked_by_pos[pos])]
+        if not cands:
+            break
+        cands.sort(key=lambda x: x[0], reverse=True)
+        _, pos, player = cands[0]
+        flex_fills.append((pos, player["name"], player["ros_ppg"]))
+        taken[pos] += 1
     repl = {}
-    for pos, n_start in starters.items():
-        rank = args.teams * n_start
-        ranked = sorted([r for r in all_rows if r["pos"] == pos], key=lambda x: x["ros_ppg"], reverse=True)
-        if len(ranked) >= rank:
-            repl[pos] = ranked[rank-1]["ros_ppg"]
-            repl[pos+"_name"] = ranked[rank-1]["name"]
-            repl[pos+"_rank"] = rank
+    for pos in starters:
+        if taken[pos] >= 1 and len(ranked_by_pos[pos]) >= taken[pos]:
+            last = ranked_by_pos[pos][taken[pos] - 1]
+            repl[pos] = last["ros_ppg"]
+            repl[pos+"_name"] = last["name"]
+            repl[pos+"_rank"] = taken[pos]
         else:
             repl[pos] = 0.0
-    print(f"League: {args.teams} teams, {args.qb} QB / {args.rb} RB / {args.wr} WR / {args.te} TE starters")
+    print(f"League: {args.teams} teams, {args.qb} QB / {args.rb} RB / {args.wr} WR / {args.te} TE starters, {args.flex} FLEX (RB/WR/TE)")
+    print(f"Flex filled by: {chr(44).join(f' {pos} {name} {ppg}' for pos, name, ppg in flex_fills)}")
     print(f"Blend: {'ON (old v2, backtest says it does not help): 65% schedule-adjusted Sleeper + 35% form (60% last-3 + 40% season)' if args.blend else 'OFF (v3 default, raw Sleeper)'}")
     print(f"Schedule: {'OFF (v3 default; backtest: schedule adjustment hurt every position)' if not args.blend else 'ON via --blend: opp allowed / league avg, capped 0.85-1.15, Weeks 1-9 actuals'}")
     print("Replacement levels (ROS PPG, v3 raw):")
